@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>英語口說測驗｜抽籤計時器</title>
+<style>
+:root{
+  --bg:#f5f3ee; --ink:#1e293b; --muted:#64748b; --line:#e2ddd2; --card:#ffffff;
+  --accent:#2563eb; --accent-soft:#dbeafe; --ok:#16a34a; --ok-soft:#dcfce7;
+  --bad:#dc2626; --bad-soft:#fee2e2; --warn:#ea580c; --gold:#f59e0b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+
+/* header */
+header{display:flex;align-items:center;gap:14px;padding:12px 22px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
+header h1{font-size:19px;margin:0;margin-right:auto;letter-spacing:.5px}
+.seat{display:flex;align-items:center;gap:6px;font-size:16px}
+.seat input{width:70px;font-size:20px;font-weight:700;text-align:center;padding:4px 6px;border:1px solid var(--line);border-radius:8px}
+.scorebar{display:flex;gap:6px;align-items:center;font-size:15px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:6px 12px}
+.scorebar b{font-size:18px}
+.scorebar .total b{font-size:22px;color:var(--accent)}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;border-radius:9px;font-size:15px}
+.btn:hover:not(:disabled){background:#f1f5f9}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover:not(:disabled){background:#1d4ed8}
+.btn.green{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.green:hover:not(:disabled){background:#15803d}
+
+/* tabs */
+.tabs{display:flex;gap:8px;padding:14px 22px 0}
+.tab{border:none;background:transparent;font-size:18px;padding:10px 20px;border-radius:12px 12px 0 0;color:var(--muted);font-weight:600}
+.tab.active{background:#fff;color:var(--ink);box-shadow:0 -1px 0 var(--line) inset}
+.tab small{font-weight:400;margin-left:4px}
+
+main{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:18px;padding:0 22px 22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px}
+
+/* stage */
+.stage{padding:22px 26px;display:flex;flex-direction:column;min-height:560px;border-top-left-radius:0}
+.stage-top{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:16px}
+.stage-top .progress{font-weight:600;color:var(--ink)}
+.item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px 0}
+.item-text{font-weight:800;line-height:1.2;transition:filter .2s}
+.item-text.word{font-size:clamp(48px,7vw,96px)}
+.item-text.q{font-size:clamp(28px,3.2vw,44px);max-width:900px}
+.item-text.placeholder{font-size:26px;font-weight:500;color:var(--muted)}
+.item-text.hidden{filter:blur(18px);user-select:none}
+.item-hint{margin-top:12px;font-size:22px;color:var(--warn);font-weight:600;min-height:30px}
+
+.timer-row{display:flex;align-items:center;justify-content:center;gap:34px;margin:6px 0 18px}
+.ring{position:relative;width:170px;height:170px}
+.ring svg{transform:rotate(-90deg)}
+.ring .bg{stroke:#eef2f7}
+.ring .fg{stroke:var(--accent);transition:stroke .2s}
+.ring.warn .fg{stroke:var(--bad)}
+.ring .num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:800;font-variant-numeric:tabular-nums}
+.ring.warn .num{color:var(--bad)}
+.status{display:flex;flex-direction:column;gap:12px;min-width:170px}
+.status .label{font-size:26px;font-weight:800}
+.status .label.timeup{color:var(--bad)}
+.status .label.running{color:var(--accent)}
+.status .label.done{color:var(--ok)}
+.chances{font-size:16px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dot{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);display:inline-block}
+.dot.used{background:var(--accent)}
+
+.controls{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.controls .btn{font-size:18px;padding:12px 22px}
+.controls .btn.big{font-size:20px;padding:12px 32px;min-width:200px}
+.keys{text-align:center;color:var(--muted);font-size:13px;margin-top:12px}
+kbd{background:#f1f5f9;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-family:inherit}
+
+/* side */
+.side{display:flex;flex-direction:column;gap:18px}
+.panel{padding:16px 18px}
+.panel h2{font-size:17px;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center}
+.panel h2 span{font-weight:400;font-size:14px;color:var(--muted)}
+.draw-btn{width:100%;font-size:20px;padding:14px;margin-bottom:12px}
+
+.row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;border:1px solid transparent;cursor:pointer}
+.row:hover{background:#f8fafc}
+.row.cur{background:var(--accent-soft);border-color:#bfdbfe}
+.row .idx{width:26px;height:26px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none}
+.row.cur .idx{background:var(--accent);color:#fff}
+.row .txt{flex:1;font-size:16px;min-width:0}
+.row .used{font-size:12px;color:var(--muted);flex:none}
+.sc{display:flex;gap:4px;flex:none}
+.sc button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 9px;font-size:14px;min-width:36px}
+.sc button.on.v0{background:var(--bad-soft);border-color:var(--bad);color:var(--bad);font-weight:700}
+.sc button.on.vp{background:var(--ok-soft);border-color:var(--ok);color:var(--ok);font-weight:700}
+.empty{color:var(--muted);text-align:center;padding:14px 0;margin:0}
+
+.pool{display:grid;gap:6px}
+.pool.words{grid-template-columns:repeat(4,1fr)}
+.pool.qs{grid-template-columns:1fr}
+.cell{position:relative;border:1px solid var(--line);border-radius:8px;padding:7px 8px 7px 26px;font-size:14px;background:#fff;transition:background .08s}
+.cell .no{position:absolute;left:7px;top:7px;font-size:11px;color:var(--muted)}
+.cell.flash{background:#fde68a;border-color:var(--gold)}
+.cell.picked{background:var(--accent-soft);border-color:#93c5fd;font-weight:700}
+.cell.cur{background:var(--accent);border-color:var(--accent);color:#fff}
+.cell.cur .no{color:#dbeafe}
+.cell .order{position:absolute;right:6px;top:5px;font-size:12px;background:#fff;color:var(--accent);border-radius:10px;padding:0 6px}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+.modal.open{display:flex}
+.modal .box{background:#fff;border-radius:16px;max-width:900px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px}
+.modal h3{margin:0 0 14px;font-size:20px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-grid label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted)}
+.form-grid textarea{font-family:inherit;font-size:15px;padding:8px;border:1px solid var(--line);border-radius:8px;min-height:260px;resize:vertical;color:var(--ink)}
+.nums{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px}
+.nums label{font-size:14px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.nums input{width:64px;font-size:16px;padding:4px 6px;border:1px solid var(--line);border-radius:6px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+th{background:#f8fafc;font-weight:700}
+td.num,th.num{text-align:center}
+.del{border:none;background:none;color:var(--bad);font-size:16px}
+
+@media (max-width:900px){
+  main{grid-template-columns:1fr}
+  .pool.words{grid-template-columns:repeat(3,1fr)}
+  .form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎤 英語口說測驗　抽籤計時器</h1>
+  <div class="seat">座號 <input id="seat" type="text" value="1"></div>
+  <div class="scorebar">
+    <span>單字 <b id="sW">0</b>/<span id="mW">4</span></span>｜
+    <span>問答 <b id="sQ">0</b>/<span id="mQ">6</span></span>｜
+    <span class="total">總分 <b id="sT">0</b>/<span id="mT">10</span></span>
+  </div>
+  <button class="btn green" id="btnRecord">✔ 記錄成績・下一位</button>
+  <button class="btn" id="btnRecords">📋 成績紀錄 (<span id="recCount">0</span>)</button>
+  <button class="btn" id="btnSettings">⚙ 題目設定</button>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-mode="word">一、單字口說<small>（4%）</small></button>
+  <button class="tab" data-mode="q">二、問答口說<small>（6%）</small></button>
+</div>
+
+<main>
+  <section class="card stage">
+    <div class="stage-top">
+      <span class="progress" id="progress">—</span>
+      <button class="btn" id="btnHide" title="問答題可先遮住文字，由老師口唸">🙈 遮住文字</button>
+    </div>
+
+    <div class="item">
+      <div class="item-text placeholder" id="itemText">按右邊「抽籤」開始</div>
+      <div class="item-hint" id="itemHint"></div>
+    </div>
+
+    <div class="timer-row">
+      <div class="ring" id="ring">
+        <svg width="170" height="170" viewBox="0 0 170 170">
+          <circle class="bg" cx="85" cy="85" r="74" fill="none" stroke-width="12"/>
+          <circle class="fg" id="ringFg" cx="85" cy="85" r="74" fill="none" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+        <div class="num" id="ringNum">5</div>
+      </div>
+      <div class="status">
+        <div class="label" id="statusLabel">準備</div>
+        <div class="chances" id="chances"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn" id="btnPrev">◀ 上一題</button>
+      <button class="btn primary big" id="btnStart">▶ 開始計時</button>
+      <button class="btn" id="btnNext">下一題 ▶</button>
+    </div>
+    <div class="keys">
+      快捷鍵：<kbd>空白鍵</kbd> 開始／停止　<kbd>←</kbd><kbd>→</kbd> 換題　<kbd>0</kbd><kbd>1</kbd><kbd>2</kbd> 給分　<kbd>D</kbd> 抽籤
+    </div>
+  </section>
+
+  <aside class="side">
+    <section class="card panel">
+      <button class="btn primary draw-btn" id="btnDraw">🎲 抽籤</button>
+      <h2 id="drawnTitle">抽到的題目 <span></span></h2>
+      <div id="drawn"></div>
+    </section>
+    <section class="card panel">
+      <h2 id="poolTitle">題庫 <span></span></h2>
+      <div class="pool words" id="pool"></div>
+    </section>
+  </aside>
+</main>
+
+<!-- 設定 -->
+<div class="modal" id="mSettings">
+  <div class="box">
+    <h3>⚙ 題目設定（一行一題）</h3>
+    <div class="form-grid">
+      <label>單字題庫<textarea id="tWords"></textarea></label>
+      <label>問句題庫（括號內文字會顯示成提示）<textarea id="tQs"></textarea></label>
+    </div>
+    <div class="nums">
+      <label>每題秒數 <input type="number" id="nSec" min="1" max="120"></label>
+      <label>單字抽幾個 <input type="number" id="nW" min="1" max="50"></label>
+      <label>問句抽幾題 <input type="number" id="nQ" min="1" max="50"></label>
+      <label>作答機會 <input type="number" id="nCh" min="1" max="5"> 次</label>
+      <label><input type="checkbox" id="nSound" style="width:auto"> 聲音提示</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btnDefault">還原預設題目</button>
+      <button class="btn" data-close>取消</button>
+      <button class="btn primary" id="btnSaveSettings">儲存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 紀錄 -->
+<div class="modal" id="mRecords">
+  <div class="box">
+    <h3>📋 成績紀錄</h3>
+    <div id="recTable"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btnClearRec" style="color:var(--bad)">清除全部</button>
+      <button class="btn" id="btnCsv">⬇ 下載 CSV（Excel 可開）</button>
+      <button class="btn primary" data-close>關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULTS = {
+  words: ["chicken","train","police officer","waitress","forest","finally","duck","teenager",
+          "important","interesting","famous","goose","map","reach","shout","popular",
+          "guitar","secretary","quarter","proud"],
+  questions: [
+    "What do you want to be in the future?",
+    "What do you do before you go to bed every day?",
+    "What time do you usually get up every morning? (用介係詞表示時間)",
+    "What were your classmates doing when you got to the classroom this morning?",
+    "What time is it now? (用介係詞表示時間)",
+    "Is being a youtuber a good job? Why? Or Why not?"
+  ],
+  seconds: 5, wordCount: 4, qCount: 3, chances: 2, sound: true
+};
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function store(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
+function restore(key){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }catch(e){ return null; } }
+
+let cfg = Object.assign(clone(DEFAULTS), restore('oralCfg') || {});
+let records = restore('oralRecords') || [];
+let mode = 'word';
+let hideText = false;
+let S = fresh();
+function fresh(){ return { word:{drawn:[],cur:-1}, q:{drawn:[],cur:-1} }; }
+
+const sec  = () => mode === 'word' ? S.word : S.q;
+const pool = () => mode === 'word' ? cfg.words : cfg.questions;
+const need = () => mode === 'word' ? cfg.wordCount : cfg.qCount;
+const maxPt = () => mode === 'word' ? 1 : 2;
+const cur  = () => sec().drawn[sec().cur];
+
+function sample(n, len){
+  const a = [...Array(len).keys()];
+  for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a.slice(0, Math.min(n, len));
+}
+function splitHint(t){
+  const m = t.match(/^(.*?)\s*[（(]([^()（）]+)[)）]\s*$/);
+  return m ? { main:m[1], hint:m[2] } : { main:t, hint:'' };
+}
+
+/* ---------- 聲音 ---------- */
+let ac = null;
+function audioOn(){ try{ ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if(ac.state === 'suspended') ac.resume(); }catch(e){} }
+function tone(freq, dur, vol = 0.2, delay = 0){
+  if(!cfg.sound || !ac) return;
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = 'sine'; o.frequency.value = freq;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur);
+}
+
+/* ---------- 計時 ---------- */
+const C = 2 * Math.PI * 74;
+const T = { status:'idle', start:0, raf:0, lastSec:null, rem:0 };
+$('#ringFg').style.strokeDasharray = C;
+
+function drawRing(rem){
+  T.rem = rem;
+  const total = cfg.seconds * 1000;
+  $('#ringFg').style.strokeDashoffset = C * (1 - rem / total);
+  $('#ringNum').textContent = Math.ceil(rem / 1000);
+  $('#ring').classList.toggle('warn', T.status === 'running' && rem <= 2000 || T.status === 'timeup');
+}
+function resetTimer(){ cancelAnimationFrame(T.raf); T.status = 'idle'; drawRing(cfg.seconds * 1000); }
+function startTimer(){
+  const d = cur(); if(!d || d.used >= cfg.chances) return;
+  audioOn();
+  d.used++;
+  T.status = 'running'; T.start = performance.now(); T.lastSec = cfg.seconds;
+  tone(660, 0.12, 0.15);
+  loop(); render();
+}
+function loop(){
+  const rem = Math.max(0, cfg.seconds * 1000 - (performance.now() - T.start));
+  const s = Math.ceil(rem / 1000);
+  if(s !== T.lastSec){ T.lastSec = s; if(s > 0 && s <= 3) tone(520, 0.08, 0.12); }
+  drawRing(rem);
+  if(rem <= 0){
+    T.status = 'timeup';
+    tone(880, 0.35, 0.25); tone(880, 0.5, 0.25, 0.4);
+    render(); return;
+  }
+  T.raf = requestAnimationFrame(loop);
+}
+function stopTimer(){ cancelAnimationFrame(T.raf); if(T.status === 'running'){ T.status = 'done'; drawRing(T.rem); } }
+
+/* ---------- 抽籤 ---------- */
+let drawing = false;
+function draw(){
+  if(drawing) return;
+  const s = sec(), p = pool();
+  if(!p.length){ alert('題庫是空的，請先到「題目設定」加入題目。'); return; }
+  if(s.drawn.some(d => d.used > 0 || d.score !== null) && !confirm('重新抽籤會清除這一部分已經作答／給分的紀錄，確定嗎？')) return;
+  stopTimer(); resetTimer(); audioOn();
+  const pick = sample(need(), p.length);
+  s.drawn = []; s.cur = -1; render();
+  drawing = true; $('#btnDraw').disabled = true;
+  const cells = [...document.querySelectorAll('#pool .cell')];
+  let n = 0;
+  const iv = setInterval(() => {
+    cells.forEach(c => c.classList.remove('flash'));
+    sample(need(), cells.length).forEach(i => cells[i].classList.add('flash'));
+    tone(300 + n * 25, 0.05, 0.08);
+    if(++n >= 16){
+      clearInterval(iv);
+      s.drawn = pick.map(i => ({ i, text:p[i], used:0, score:null }));
+      s.cur = 0; drawing = false; $('#btnDraw').disabled = false;
+      tone(990, 0.25, 0.18);
+      resetTimer(); render();
+    }
+  }, 85);
+}
+function select(k){
+  const s = sec(); if(k < 0 || k >= s.drawn.length || drawing) return;
+  stopTimer(); s.cur = k; resetTimer(); render();
+}
+function setScore(k, v){
+  const d = sec().drawn[k]; if(!d) return;
+  d.score = (d.score === v) ? null : v; render();
+}
+
+/* ---------- 分數 ---------- */
+const sum = arr => arr.reduce((a, d) => a + (d.score || 0), 0);
+function totals(){
+  const w = sum(S.word.drawn), q = sum(S.q.drawn);
+  const mw = cfg.wordCount * 1, mq = cfg.qCount * 2;
+  return { w, q, t:w + q, mw, mq, mt:mw + mq };
+}
+
+/* ---------- 畫面 ---------- */
+function render(){
+  document.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  const s = sec(), p = pool(), d = cur();
+  const isW = mode === 'word';
+
+  // 題庫
+  const pe = $('#pool');
+  pe.className = 'pool ' + (isW ? 'words' : 'qs');
+  pe.innerHTML = p.map((t, i) => {
+    const k = s.drawn.findIndex(x => x.i === i);
+    const cls = k < 0 ? '' : (k === s.cur ? 'picked cur' : 'picked');
+    return `<div class="cell ${cls}" data-k="${k}"><span class="no">${i + 1}</span>${esc(t)}${k >= 0 ? `<b class="order">${k + 1}</b>` : ''}</div>`;
+  }).join('');
+  $('#poolTitle span').textContent = `共 ${p.length} ${isW ? '個' : '題'}`;
+  $('#btnDraw').textContent = s.drawn.length ? `🎲 重新抽 ${need()} ${isW ? '個單字' : '題問句'}` : `🎲 抽 ${need()} ${isW ? '個單字' : '題問句'}`;
+
+  // 抽到的
+  $('#drawnTitle span').textContent = isW ? '每個 1 分' : '每題 2 分（聽懂題目 1 分＋答句 1 分）';
+  const opts = isW ? [[1,'✓ 1'],[0,'✗ 0']] : [[0,'0'],[1,'1'],[2,'2']];
+  $('#drawn').innerHTML = s.drawn.length ? s.drawn.map((x, k) => `
+    <div class="row ${k === s.cur ? 'cur' : ''}" data-k="${k}">
+      <span class="idx">${k + 1}</span>
+      <span class="txt">${esc(x.text)}</span>
+      <span class="used">${x.used}/${cfg.chances}次</span>
+      <span class="sc">${opts.map(([v, l]) => `<button data-k="${k}" data-v="${v}" class="${x.score === v ? 'on ' + (v ? 'vp' : 'v0') : ''}">${l}</button>`).join('')}</span>
+    </div>`).join('') : '<p class="empty">尚未抽籤</p>';
+
+  // 舞台
+  const it = $('#itemText'), hint = $('#itemHint');
+  if(!d){
+    it.className = 'item-text placeholder';
+    it.textContent = drawing ? '抽籤中…' : `按右邊「抽籤」抽出 ${need()} ${isW ? '個單字' : '題問句'}`;
+    hint.textContent = '';
+    $('#progress').textContent = isW ? '一、單字口說' : '二、問答口說';
+  }else{
+    const h = splitHint(d.text);
+    it.className = 'item-text ' + (isW ? 'word' : 'q') + (hideText ? ' hidden' : '');
+    it.textContent = h.main;
+    hint.textContent = h.hint ? `（${h.hint}）` : '';
+    $('#progress').textContent = `${isW ? '單字' : '問句'}　第 ${s.cur + 1} / ${s.drawn.length} 題`;
+  }
+  $('#btnHide').textContent = hideText ? '👁 顯示文字' : '🙈 遮住文字';
+
+  // 狀態與機會
+  const lab = $('#statusLabel');
+  const map = { idle:['準備',''], running:['作答中…','running'], timeup:['⏰ 時間到！','timeup'], done:['✔ 已停止','done'] };
+  lab.textContent = map[T.status][0]; lab.className = 'label ' + map[T.status][1];
+  $('#chances').innerHTML = d
+    ? '作答機會 ' + Array.from({length:cfg.chances}, (_, i) => `<span class="dot ${i < d.used ? 'used' : ''}"></span>`).join('')
+    : '';
+
+  // 按鈕
+  const bs = $('#btnStart');
+  if(!d){ bs.disabled = true; bs.textContent = '▶ 開始計時'; }
+  else if(T.status === 'running'){ bs.disabled = false; bs.textContent = '■ 停止（答完了）'; }
+  else if(d.used === 0){ bs.disabled = false; bs.textContent = `▶ 開始計時（${cfg.seconds} 秒）`; }
+  else if(d.used < cfg.chances){ bs.disabled = false; bs.textContent = `↻ 第 ${d.used + 1} 次機會`; }
+  else { bs.disabled = true; bs.textContent = '機會已用完'; }
+  $('#btnPrev').disabled = !d || s.cur <= 0;
+  $('#btnNext').disabled = !d || s.cur >= s.drawn.length - 1;
+
+  // 分數
+  const t = totals();
+  $('#sW').textContent = t.w; $('#mW').textContent = t.mw;
+  $('#sQ').textContent = t.q; $('#mQ').textContent = t.mq;
+  $('#sT').textContent = t.t; $('#mT').textContent = t.mt;
+  $('#recCount').textContent = records.length;
+}
+
+/* ---------- 紀錄 ---------- */
+function recordAndNext(){
+  const t = totals();
+  if(!S.word.drawn.length && !S.q.drawn.length){ alert('這位學生還沒有抽籤喔。'); return; }
+  const unscored = [...S.word.drawn, ...S.q.drawn].filter(d => d.score === null).length;
+  if(unscored && !confirm(`還有 ${unscored} 題沒有給分（會以 0 分計算），確定要記錄嗎？`)) return;
+  const seat = $('#seat').value.trim();
+  records.push({
+    seat,
+    words: S.word.drawn.map(d => `${d.text}(${d.score ?? 0})`).join('、'),
+    qs: S.q.drawn.map(d => `Q${d.i + 1}(${d.score ?? 0})`).join('、'),
+    w:t.w, q:t.q, t:t.t,
+    time: new Date().toLocaleString('zh-TW', { hour12:false })
+  });
+  store('oralRecords', records);
+  if(/^\d+$/.test(seat)) $('#seat').value = String(+seat + 1);
+  stopTimer(); S = fresh(); mode = 'word'; resetTimer(); render();
+}
+function renderRecords(){
+  $('#recTable').innerHTML = records.length ? `
+    <table>
+      <tr><th>座號</th><th>單字（得分）</th><th class="num">單字</th><th>問句（得分）</th><th class="num">問答</th><th class="num">總分</th><th>時間</th><th></th></tr>
+      ${records.map((r, i) => `<tr>
+        <td><b>${esc(r.seat)}</b></td><td>${esc(r.words)}</td><td class="num">${r.w}</td>
+        <td>${esc(r.qs)}</td><td class="num">${r.q}</td><td class="num"><b>${r.t}</b></td>
+        <td style="color:var(--muted);font-size:12px">${esc(r.time)}</td>
+        <td><button class="del" data-del="${i}" title="刪除">✕</button></td></tr>`).join('')}
+    </table>` : '<p class="empty">目前沒有紀錄</p>';
+}
+function downloadCsv(){
+  const head = ['座號','抽到的單字(得分)','單字得分','抽到的問句(得分)','問答得分','總分','時間'];
+  const q = v => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [head, ...records.map(r => [r.seat, r.words, r.w, r.qs, r.q, r.t, r.time])].map(r => r.map(q).join(','));
+  const blob = new Blob(['﻿' + rows.join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '英語口說測驗成績.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- 設定 ---------- */
+function openSettings(src = cfg){
+  $('#tWords').value = src.words.join('\n');
+  $('#tQs').value = src.questions.join('\n');
+  $('#nSec').value = src.seconds; $('#nW').value = src.wordCount; $('#nQ').value = src.qCount;
+  $('#nCh').value = src.chances; $('#nSound').checked = src.sound;
+  $('#mSettings').classList.add('open');
+}
+function saveSettings(){
+  const lines = v => v.split('\n').map(s => s.trim()).filter(Boolean);
+  const num = (id, def) => Math.max(1, parseInt($(id).value) || def);
+  cfg = {
+    words: lines($('#tWords').value), questions: lines($('#tQs').value),
+    seconds: num('#nSec', 5), wordCount: num('#nW', 4), qCount: num('#nQ', 3),
+    chances: num('#nCh', 2), sound: $('#nSound').checked
+  };
+  store('oralCfg', cfg);
+  stopTimer(); S = fresh(); resetTimer();
+  $('#mSettings').classList.remove('open'); render();
+}
+
+/* ---------- 事件 ---------- */
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  if(drawing) return; stopTimer(); mode = b.dataset.mode; resetTimer(); render();
+});
+$('#btnDraw').onclick = draw;
+$('#btnStart').onclick = () => T.status === 'running' ? (stopTimer(), render()) : startTimer();
+$('#btnPrev').onclick = () => select(sec().cur - 1);
+$('#btnNext').onclick = () => select(sec().cur + 1);
+$('#btnHide').onclick = () => { hideText = !hideText; render(); };
+$('#drawn').onclick = e => {
+  const b = e.target.closest('button[data-v]');
+  if(b){ setScore(+b.dataset.k, +b.dataset.v); return; }
+  const r = e.target.closest('.row'); if(r) select(+r.dataset.k);
+};
+$('#pool').onclick = e => { const c = e.target.closest('.cell'); if(c && +c.dataset.k >= 0) select(+c.dataset.k); };
+$('#btnRecord').onclick = recordAndNext;
+$('#btnRecords').onclick = () => { renderRecords(); $('#mRecords').classList.add('open'); };
+$('#recTable').onclick = e => {
+  const b = e.target.closest('[data-del]'); if(!b) return;
+  if(confirm('刪除這筆紀錄？')){ records.splice(+b.dataset.del, 1); store('oralRecords', records); renderRecords(); render(); }
+};
+$('#btnCsv').onclick = () => records.length ? downloadCsv() : alert('目前沒有紀錄');
+$('#btnClearRec').onclick = () => { if(records.length && confirm('確定清除全部成績紀錄？')){ records = []; store('oralRecords', records); renderRecords(); render(); } };
+$('#btnSettings').onclick = () => openSettings();
+$('#btnDefault').onclick = () => openSettings(clone(DEFAULTS));
+$('#btnSaveSettings').onclick = saveSettings;
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => b.closest('.modal').classList.remove('open'));
+document.querySelectorAll('.modal').forEach(m => m.onclick = e => { if(e.target === m) m.classList.remove('open'); });
+
+document.addEventListener('keydown', e => {
+  if(document.querySelector('.modal.open') || /INPUT|TEXTAREA/.test(e.target.tagName)) return;
+  const s = sec();
+  if(e.code === 'Space'){ e.preventDefault(); if(!$('#btnStart').disabled) $('#btnStart').click(); }
+  else if(e.key === 'ArrowRight') select(s.cur + 1);
+  else if(e.key === 'ArrowLeft') select(s.cur - 1);
+  else if(e.key === 'd' || e.key === 'D') draw();
+  else if(/^[0-2]$/.test(e.key) && cur() && +e.key <= maxPt()){
+    const d = cur(); d.score = +e.key; render();
+  }
+});
+
+resetTimer(); render();
+</script>
+</body>
+</html>
